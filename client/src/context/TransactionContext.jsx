@@ -25,6 +25,10 @@ const getEthereumContract = () => {
 
 export const TransactionProviders = ({ children }) => {
   const [currentAccount, setCurrentAccount] = useState();
+  const [isLoading, setIsLoading] = useState(false);
+  const [transactionCount, setTransactionCount] = useState(
+    localStorage.getItem("transactionCount")
+  );
   const [formData, setFormData] = useState({
     addressTo: "",
     amount: "",
@@ -72,6 +76,35 @@ export const TransactionProviders = ({ children }) => {
       //get data from form.
       const { addressTo, amount, keyword, message } = formData;
       const transactionContract = getEthereumContract();
+      const parsedAmount = ethers.utils.parseEther(amount);
+
+      await ethereum.request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: currentAccount,
+            to: addressTo,
+            gas: "0x5208", //21000 GWEI in decimal equivalent to hex value 0x5208
+            value: parsedAmount._hex,
+          },
+        ],
+      });
+
+      const transactionHash = await transactionContract.addToBlockChain(
+        addressTo,
+        parsedAmount,
+        message,
+        keyword
+      );
+
+      setIsLoading(true);
+      console.log(`Loading - ${transactionHash.hash}`);
+      await transactionHash.wait();
+      setIsLoading(false);
+      console.log(`success - ${transactionHash.hash}`);
+
+      const transactionCount = await transactionContract.transactionCount();
+      setTransactionCount(transactionCount.toNumber());
     } catch (error) {
       console.log(error);
       throw new Error("No Ethereum object.");
